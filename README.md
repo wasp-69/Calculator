@@ -1,7 +1,7 @@
 # Calculator
 
 Language: Python
-Version: 2.3 stable.
+Version: 2.23 stable.
 Command-line calculator. 
 Contains instruction on how to use the program,
 Has built-in commands like: /help, /history, etc.
