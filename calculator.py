@@ -3,7 +3,10 @@ from random import randint, choice
 def calculator(equation):
     global history_record, history, sequence
     try:
-        parts = equation.split()
+        try:
+            parts = equation.split()
+        except AttributeError:
+            parts = equation
         if parts[0].lower() == "/help":
             return handle_help(parts)
 
@@ -14,7 +17,10 @@ def calculator(equation):
             return handle_history(parts, history, history_record)
             
         elif parts[0].lower() in ["/sequence","/s"]:
-            return handle_sequence(parts, sequence)
+            return handle_sequence(parts)
+
+        elif parts[0].lower() in ["/detail","/d"]:
+            return handle_detail(parts)
         else:
             if sequence == "LTR":
                 return evaluate_LTR(parts, equation)
@@ -34,6 +40,8 @@ def evaluate_PEMDAS(parts, equation):
                 i = len(parts)-1
             if parts[i] == "^":                                                              #   fix the ^ 6 6 6 bug
                 parts = parts[:i-1] + [float(parts[i-1])**float(parts[i+1])] + parts[i+2:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
                 i += 1
             else:
                 i -= 1
@@ -41,9 +49,13 @@ def evaluate_PEMDAS(parts, equation):
         while i < len(parts):
             if parts[i] == "*":
                 parts = parts[:i-1] + [float(parts[i-1])*float(parts[i+1])] + parts[i+2:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
                 i = max(i-1,0)
             elif parts[i] == "/":
                 parts = parts[:i-1] + [float(parts[i-1])/float(parts[i+1])] + parts[i+2:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
                 i = max(i-1,0)
             else: 
                 i += 1
@@ -51,15 +63,22 @@ def evaluate_PEMDAS(parts, equation):
         while i < len(parts):
             if parts[i] == "+":
                 parts = parts[:i-1] + [float(parts[i-1])+float(parts[i+1])] + parts[i+2:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
                 i = max(i-1,0)
             elif parts[i] == "-":
                 parts = parts[:i-1] + [float(parts[i-1])-float(parts[i+1])] + parts[i+2:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
                 i = max(i-1,0)
             else:
                 i += 1
         solution = parts[0]
         if history_record:
-            history[equation + f"    {dim("[PEMDAS]")}"] = solution
+            try:
+                history[equation + f"    {dim("[PEMDAS]")}"] = solution
+            except TypeError:
+                history[" ".join(equation) + f"    {dim("[PEMDAS]")}"] = solution
         return f"Solution: {solution}"
     except IndexError:
         return "Invalid equation format."
@@ -76,18 +95,27 @@ def evaluate_LTR(parts, equation):
         while len(parts) > 1:
             a,b = float(parts[0]),float(parts[2])
             if parts[1] == "+":
-                new = a + b
+                parts = [a+b] + parts[3:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
             elif parts[1] == "-":
-                new = a - b
+                parts = [a-b] + parts[3:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
             elif parts[1] == "*":
-                new = a * b
+                parts = [a*b] + parts[3:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
             elif parts[1] == "/":
-                new = a / b
+                parts = [a/b] + parts[3:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
             elif parts[1] == "^":
-                new = a ** b
+                parts = [a**b] + parts[3:]
+                if detail:
+                    print(dim(" = " + " ".join(list(map(str, parts)))))
             else:
                 return "Invalid operation used."
-            parts = [new] + parts[3:]
         solution = parts[0]
         if history_record:
             history[equation + f"    {dim("[LTR]")}"] = solution
@@ -115,45 +143,52 @@ def verify(parts):
     
 def handle_help(parts):
     help_text = """
-    ~/History     [1]
-    ~/Sequence    [2]
-    ~/Example     [3]
-    ~/Memory      [4]
-    Type help and then name of the command or its index to get more info.
+~/History     [1]
+~/Sequence    [2]
+~/Example     [3]
+~/Memory      [4]
+~/Detail      [5]
+Type help and then name of the command or its index to get more info.
     """
     help_history = f"""
-    /History: Shows all successfully solved equations in a list. {dim("/h")}
-    Sub-Commands: 
-        /History Clear: Clears all history. {dim(("/h c"))}
-        /History Record: Toggles recording history. {dim("/h r")}
-        /History Equate: Equates the most recent equation from history. {dim("/h e")}
+/History: Shows all successfully solved equations in a list. {dim("/h")}
+Sub-Commands: 
+    /History Clear: Clears all history. {dim(("/h c"))}
+    /History Record: Toggles recording history. {dim("/h r")}
+    /History Equate: Equates the most recent equation from history. {dim("/h e")}
     """
     help_sequence = f"""
-    /Sequence: Toggles between Pemdas evaluation and left-to-right evaluation sequences. {dim("/s")}
-    Can also be followed by any equation to switch sequence, solve the equation and switch back. {dim("/s <eq>")}
+/Sequence: Toggles between Pemdas evaluation and left-to-right evaluation sequences. {dim("/s")}
+Can also be followed by any equation to switch sequence, solve the equation and switch back. {dim("/s <eq>")}
     """
     help_example = f"""
-    /Example: Gives an example equation and solution with all operands except exponents. {dim("/e")}
+/Example: Gives an example equation and solution with all operands except exponents. {dim("/e")}
     """
     help_memory = f"""
-    /Memory: Lists the Memory (memory saves to file). {dim("/m")}
-    Sub-Commands:
-        /Memory Add <eq>: Saves the provided equation to memory, saves the most recent one in history if no equation given. {dim("/m a")}
-        /Memory Remove <eq>: Removes the provided equation from memory, removes the most recent one in memory if no equation given. {dim("/m r")}
-        /Memory Clear: Clears all equations from memory. {dim("/m c")}
-        /Memory Solve: Starts solving all equations in memory in order. {dim("/m s")}
+/Memory: Lists the Memory (memory saves to file). {dim("/m")}
+Sub-Commands:
+    /Memory Add <eq>: Saves the provided equation to memory, saves the most recent one in history if no equation given. {dim("/m a")}
+    /Memory Remove <eq>: Removes the provided equation from memory, removes the most recent one in memory if no equation given. {dim("/m r")}
+    /Memory Clear: Clears all equations from memory. {dim("/m c")}
+    /Memory Solve: Starts solving all equations in memory in order. {dim("/m s")}
+    """
+    help_detail = f"""
+/Detail: Toggles showing steps when solving equations for added detail. {dim("/d")}
+Can also be followed by any equation to get a detailed solution on that equation only. {dim("/d <eq>")}
     """
 
     if len(parts) == 1:
         return help_text
-    elif parts[1].lower() in ["/history","/h","history","h","1"]:
+    elif parts[1].lower() in ["/history","/h","history","h","1","[1]"]:
         return help_history
-    elif parts[1].lower() in ["/sequence","/s","sequence","s","2"]:
+    elif parts[1].lower() in ["/sequence","/s","sequence","s","2","[2]"]:
         return help_sequence
-    elif parts[1].lower() in ["/example","/e","example","e","3"]:
+    elif parts[1].lower() in ["/example","/e","example","e","3","[3]"]:
         return help_example
-    elif parts[1].lower() in ["/memory","/m","memory","m","4"]:
+    elif parts[1].lower() in ["/memory","/m","memory","m","4","[4]"]:
         return help_memory
+    elif parts[1].lower() in ["/detail","/d","detail","d","5","[5]"]:
+        return help_detail
     else:
         return f"No help topic found for '{parts[1]}'."
 
@@ -189,7 +224,8 @@ def handle_history(parts, history, history_record):
     else:
         return f"No sub-command '{parts[1]}' found"
 
-def handle_sequence(parts, sequence):
+def handle_sequence(parts):
+    global sequence
     if len(parts) == 1:
         if sequence == "LTR":
             sequence = "PEMDAS"
@@ -212,11 +248,32 @@ def handle_sequence(parts, sequence):
                 parts.remove("/sequence")
             return evaluate_LTR(parts, " ".join(parts))
 
+def handle_detail(parts):
+    global detail
+    if detail:
+        detail = False
+    else:
+        detail = True
+    if len(parts) == 1:
+        return f"Detailing has now been set to {bool(detail)}."
+    else:
+        parts[0] == parts[0].lower()
+        try:
+            parts.remove("/d")
+        except:
+            parts.remove("/detail")
+        solution = calculator(parts)
+        if detail:
+            detail = False
+        else:
+            detail = True
+        return solution
+
 def dim(string):
-    return "\033[2m"+string+"\033[0m"
+    return "\033[2m"+str(string)+"\033[0m"
 
 def main():
-    print(dim("v2.49 stable")) # working on 3.0 push
+    print(dim("v2.3 stable")) # working on 3.0 push
     print(start_text)
     while True:
         try: 
@@ -231,6 +288,7 @@ def main():
 
 history_record = True
 sequence = "PEMDAS"
+detail = False
 history = {}
 memory = {}
 
@@ -246,4 +304,4 @@ if __name__ == "__main__":
 
 # [done] version 1.5: added error handling for invalid input, added error handling for division by zero, added error handling for non-integer input, added error handling for invalid operations, added error handling for missing operands, added error handling for extra operands, added error handling for empty input.
 # [done] version 2: added pemdas functionality, added exponents functionality, added and imporved history functionality, added history pause cmd, improve help text, added help cmd, added clear history cmd, added history evaluate cmd, added sequence shifting cmd, added quick shift cmd.
-# version 3: add variable functionality, add parentheses functionality, add memory functionality (memory saves to memory.txt), add function support.
+# version 3: add variable functionality, add parentheses functionality, add memory functionality (memory saves to memory.txt), add function support, added a mode to show solution steps. 
