@@ -1,0 +1,19 @@
+def calc(equation):
+    parts = str(equation).split()
+    for i in range(int((len(parts)-1)/2)) : 
+        if str(parts[1]) == "+":
+            new = int(parts[0]) + int(parts[2])
+        elif str(parts[1]) == "-":
+            new = int(parts[0]) - int(parts[2])
+        elif str(parts[1]) == "*":
+            new = int(parts[0]) * int(parts[2])
+        elif str(parts[1]) == "/":
+            new = int(parts[0]) / int(parts[2])
+        parts[0] = new
+        parts.remove(parts[1])
+        parts.remove(parts[1])
+    solution = parts[0]
+    return solution
+print(f"Answer: {calc(input('Equation: '))}")
+        
+
