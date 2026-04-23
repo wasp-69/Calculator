@@ -8,6 +8,9 @@ def calculator(equation):
             parts = equation.split()
         except AttributeError:
             parts = equation
+        if "(" in parts or ")" in parts:
+            return handle_parenthesis(parts)
+        
         if parts[0].lower() == "/help":
             return handle_help(parts)
 
@@ -16,20 +19,28 @@ def calculator(equation):
         
         elif parts[0].lower() in ["/history","/h"]:
             return handle_history(parts)
-            
+
         elif parts[0].lower() in ["/sequence","/s"]:
             return handle_sequence(parts)
 
         elif parts[0].lower() in ["/memory","/m"]:
                 return handle_memory(parts, history)
-        
+
         elif parts[0].lower() in ["/detail","/d"]:
             return handle_detail(parts)
+
+        elif parts[0].lower() in ["/variable","/v"]:
+            return handle_variable(parts,)
+
+        elif parts[0].lower() in ["/function","/f"]:
+            return handle_variable(parts,)
+
         else:
             if sequence == "LTR":
                 return evaluate_LTR(parts, equation)
             else:
                 return evaluate_PEMDAS(parts, equation)
+
     except IndexError:
         return "Invalid equation format."
 
@@ -90,7 +101,7 @@ def evaluate_PEMDAS(parts, equation):
         return "Invalid equation format."
     except ZeroDivisionError:
         return "Cannot divide by zero."
-    
+
 def evaluate_LTR(parts, equation):
     global history_record, history
     if not verify(parts):
@@ -130,7 +141,7 @@ def evaluate_LTR(parts, equation):
         return "Invalid equation format."
     except ZeroDivisionError:
         return "Cannot divide by zero."
-    
+
 def verify(parts):
     if parts[0] in "+-*/^" or parts[-1] in "+-*/^":
         return False
@@ -144,7 +155,7 @@ def verify(parts):
         if parts[i] in "+-*/^" and i % 2 == 0:
             return False
     return True
-    
+
 def handle_help(parts):
     help_text = """
 ~/History     [1]
@@ -328,7 +339,7 @@ def handle_memory(parts, history):
         
     else:
         return f"No action available for '{parts[1]}'."
-    
+
 def handle_detail(parts):
     global detail
     if detail:
@@ -350,12 +361,53 @@ def handle_detail(parts):
             detail = True
         return solution
 
+def verify_parenthesis(parts):
+    counter = 0
+    for i in parts:
+        if i == "(":
+            counter += 1
+        elif i == ")":
+            counter -= 1
+        if counter < 0:
+            return False
+    return counter == 0
+
+def handle_parenthesis(parts):
+    if not verify_parenthesis(parts):
+        return "Invalid parenthesis."
+    while "(" in parts:
+        found = False
+        op_index = len(parts) - 1
+        cl_index = 0
+        for i in reversed(parts):
+            if i == "(":
+                break
+            else:
+                op_index -= 1
+        for i in parts:
+            if i == ")":
+                if cl_index > op_index:
+                    break
+                else: 
+                    cl_index += 1
+            else:
+                cl_index += 1
+        between = slice(op_index+1,cl_index)
+        parts = parts[:op_index] + calculator(parts[between]).removeprefix("Solution: ").split() + parts[cl_index+1:]
+    return calculator(parts)
+
+def handle_variable(parts):
+    ...
+
+def handle_funtion(parts):
+    ...
+
 def dim(string):
     return "\033[2m"+str(string)+"\033[0m"
 
 def main():
     global recursion_counter, inf_rec_var
-    print(dim("v2.5")) # working on 3.0 push
+    print(dim("v2.6")) # working on 3.0 push
     print(start_text)
     while True:
         try: 
@@ -388,10 +440,11 @@ start_text = """\n-Type in equations in the form <operand><space><operation><spa
 -Type /help (recommended for first use).\n"""
 
 
+
 if __name__ == "__main__":
     main()
 
 
 # [done] version 1.5: added error handling for invalid input, added error handling for division by zero, added error handling for non-integer input, added error handling for invalid operations, added error handling for missing operands, added error handling for extra operands, added error handling for empty input.
 # [done] version 2: added pemdas functionality, added exponents functionality, added and imporved history functionality, added history pause cmd, improve help text, added help cmd, added clear history cmd, added history evaluate cmd, added sequence shifting cmd, added quick shift cmd.
-# version 3: add variable functionality, add parentheses functionality, add memory functionality (memory saves to memory.txt), add function support, add a mode to show solution steps. 
+# version 3: add variable functionality, add parentheses functionality, added memory functionality (memory saves to memory.txt), add function support, add a mode to show solution steps. 
