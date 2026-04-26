@@ -2,13 +2,14 @@ from random import randint, choice
 from json import dump, load
 
 def calculator(equation):
-    global history_record, history, sequence
+    global history_record, history, sequence, detail
     try:
         try:
             parts = equation.split()
         except AttributeError:
             parts = equation
-        if "(" in parts or ")" in parts:
+
+        if "(" in parts:
             return handle_parenthesis(parts)
         
         if parts[0].lower() == "/help":
@@ -33,7 +34,7 @@ def calculator(equation):
             return handle_variable(parts,)
 
         elif parts[0].lower() in ["/function","/f"]:
-            return handle_variable(parts,)
+            return handle_function(parts,)
 
         else:
             if sequence == "LTR":
@@ -222,7 +223,7 @@ def handle_history(parts):
         for eq, ans in history.items():
             print(f"Equation: {eq}\nSolution: {ans}")
         print(dim("- - - - -"))
-        return f"{len(history)} equations currently recorded in history."
+        return f"There are {len(history)} equations currently recorded in history."
     elif parts[1].lower() in ["clear","c"]:
         history={}
         return "History cleared."
@@ -373,10 +374,10 @@ def verify_parenthesis(parts):
     return counter == 0
 
 def handle_parenthesis(parts):
+    global detail
     if not verify_parenthesis(parts):
         return "Invalid parenthesis."
     while "(" in parts:
-        found = False
         op_index = len(parts) - 1
         cl_index = 0
         for i in reversed(parts):
@@ -384,6 +385,12 @@ def handle_parenthesis(parts):
                 break
             else:
                 op_index -= 1
+        try:
+            if (parts[op_index-1].isdigit() or parts[op_index-1].endswith(")")) and op_index != 0:
+                parts.insert(op_index, "*")
+                op_index += 1
+        except IndexError:
+            pass
         for i in parts:
             if i == ")":
                 if cl_index > op_index:
@@ -392,14 +399,26 @@ def handle_parenthesis(parts):
                     cl_index += 1
             else:
                 cl_index += 1
+        try:
+            if (parts[cl_index+1].isdigit() or parts[cl_index+1].startswith("(")) and cl_index+1 != 0:
+                parts.insert(cl_index+1, "*")
+        except IndexError:
+            pass
         between = slice(op_index+1,cl_index)
+        if detail:
+            print(dim(f" = {" ".join(parts)}"))
+        temp_detail = detail
+        if detail:
+            detail = False
         parts = parts[:op_index] + calculator(parts[between]).removeprefix("Solution: ").split() + parts[cl_index+1:]
+        detail = temp_detail
+    print(dim(f" = {" ".join(parts)}"))
     return calculator(parts)
 
 def handle_variable(parts):
     ...
 
-def handle_funtion(parts):
+def handle_function(parts):
     ...
 
 def dim(string):
@@ -407,7 +426,7 @@ def dim(string):
 
 def main():
     global recursion_counter, inf_rec_var
-    print(dim("v2.6")) # working on 3.0 push
+    print(dim("v2.69 stable")) # working on 3.0 push
     print(start_text)
     while True:
         try: 
@@ -435,6 +454,7 @@ with open("MAIN/memory.txt","r") as file:
     memory = list(load(file))
 
 start_text = """\n-Type in equations in the form <operand><space><operation><space><operand> and so on.
+-Parenthesis must have a space on both sides of it (implicit multiplication is supported).
 -Current operands include: + - * / ^.
 -Keyboard interrupt (twice) to exit.
 -Type /help (recommended for first use).\n"""
