@@ -1,14 +1,15 @@
 from random import randint, choice
 from json import dump, load
+from math import pi, e
 
 def calculator(equation):
-    global history_record, history, sequence, detail
+    global history_record, history, sequence, detail, variables
     try:
         try:
             parts = equation.split()
         except AttributeError:
             parts = equation
-
+        
         if "(" in parts:
             return handle_parenthesis(parts)
         
@@ -25,18 +26,19 @@ def calculator(equation):
             return handle_sequence(parts)
 
         elif parts[0].lower() in ["/memory","/m"]:
-                return handle_memory(parts, history)
+            return handle_memory(parts, history)
 
         elif parts[0].lower() in ["/detail","/d"]:
             return handle_detail(parts)
 
         elif parts[0].lower() in ["/variable","/v"]:
-            return handle_variable(parts,)
+            return handle_variable(parts)
 
         elif parts[0].lower() in ["/function","/f"]:
             return handle_function(parts,)
 
         else:
+            parts = [str(variables[i]) if i in variables else i for i in parts]
             if sequence == "LTR":
                 return evaluate_LTR(parts, equation)
             else:
@@ -148,7 +150,7 @@ def verify(parts):
         return False
     for i in range(len(parts)): 
         try:
-            int(parts[i])
+            float(parts[i])
             if i % 2 != 0:
                 return False
         except:
@@ -164,6 +166,7 @@ def handle_help(parts):
 ~/Example     [3]
 ~/Memory      [4]
 ~/Detail      [5]
+~/Variable    [6]
 Type help and then name of the command or its index to get more info.
     """
     help_history = f"""
@@ -193,7 +196,14 @@ Sub-Commands:
 /Detail: Toggles showing steps when solving equations for added detail. {dim("/d")}
 Can also be followed by any equation to get a detailed solution on that equation only. {dim("/d <eq>")}
     """
-
+    help_variable = f"""
+/Variable: Lists all variables stored with their values (pi and e are built-in). {dim("/v")}
+Sub-Commands:
+    /Variable Define <name> <value>: Define a new variable with name and value. {dim("/v d")}
+    /Variable Forget <name>: Forget the definition of the given variable. {dim("/v f")}
+    /Variable Wipe: Wipe all variable definitions. {dim("/v w")}
+"""
+    
     if len(parts) == 1:
         return help_text
     elif parts[1].lower() in ["/history","/h","history","h","1","[1]"]:
@@ -206,6 +216,8 @@ Can also be followed by any equation to get a detailed solution on that equation
         return help_memory
     elif parts[1].lower() in ["/detail","/d","detail","d","5","[5]"]:
         return help_detail
+    elif parts[1].lower() in ["/variable","/v","varibale","v","6","[6]"]:
+        return help_variable
     else:
         return f"No help topic found for '{parts[1]}'."
 
@@ -350,11 +362,7 @@ def handle_detail(parts):
     if len(parts) == 1:
         return f"Detailing has now been set to {bool(detail)}."
     else:
-        parts[0] == parts[0].lower()
-        try:
-            parts.remove("/d")
-        except:
-            parts.remove("/detail")
+        parts.pop(0)
         solution = calculator(parts)
         if detail:
             detail = False
@@ -375,6 +383,7 @@ def verify_parenthesis(parts):
 
 def handle_parenthesis(parts):
     global detail
+    parts = [str(variables[i]) if i in variables else i for i in parts]
     if not verify_parenthesis(parts):
         return "Invalid parenthesis."
     while "(" in parts:
@@ -386,7 +395,7 @@ def handle_parenthesis(parts):
             else:
                 op_index -= 1
         try:
-            if (parts[op_index-1].isdigit() or parts[op_index-1].endswith(")")) and op_index != 0:
+            if (is_float(parts[op_index-1]) or parts[op_index-1].endswith(")")) and op_index != 0:
                 parts.insert(op_index, "*")
                 op_index += 1
         except IndexError:
@@ -400,7 +409,7 @@ def handle_parenthesis(parts):
             else:
                 cl_index += 1
         try:
-            if (parts[cl_index+1].isdigit() or parts[cl_index+1].startswith("(")) and cl_index+1 != 0:
+            if (is_float(parts[cl_index+1]) or parts[cl_index+1].startswith("(")) and cl_index+1 != 0:
                 parts.insert(cl_index+1, "*")
         except IndexError:
             pass
@@ -410,23 +419,56 @@ def handle_parenthesis(parts):
         temp_detail = detail
         if detail:
             detail = False
+        if not calculator(parts[between]).startswith("Solution: "):
+            return calculator(parts[between]).removeprefix("Solution: ")
         parts = parts[:op_index] + calculator(parts[between]).removeprefix("Solution: ").split() + parts[cl_index+1:]
         detail = temp_detail
-    print(dim(f" = {" ".join(parts)}"))
+    if detail:
+        print(dim(f" = {" ".join(parts)}"))
     return calculator(parts)
 
 def handle_variable(parts):
-    ...
+    global variables
+    if len(parts) == 1:
+        print(dim("▪ ▪ ▪ ▪ ▪"))
+        for name, value in variables.items():
+            print(f"{name} = {value}")
+        print(dim("▪ ▪ ▪ ▪ ▪"))
+        return f"There are {len(variables)} defined variables."
+    elif parts[1].lower() in ["define","d"]:
+        name, value = parts[2], calculator(parts[3:]).removeprefix("Solution: ")
+        if name.isdigit() or any(item in name for item in list("+-*/^()")):
+            return "Invalid variable name, must be a string without any operands or parenthesis."
+        try:
+            value = float(value)
+        except ValueError:
+            return "Invalid variable value, only numeric values are valid."
+        variables[name] = value
+        return f"New variable '{name}' with the value '{value}' defined."
+    elif parts[1].lower() in ["forget","f"]:
+        if variables.pop(parts[2], False):
+            return f"Forgot the definition of '{parts[2]}'."
+        return f"No variable found with the name '{parts[2]}' to forget."
+    elif parts[1].lower() in ["wipe","w"]:
+        variables = {}
+        return "All variable definitions wiped."
 
 def handle_function(parts):
     ...
+
+def is_float(test):
+    try:
+        float(test)
+        return True
+    except (ValueError, TypeError):
+        return False
 
 def dim(string):
     return "\033[2m"+str(string)+"\033[0m"
 
 def main():
     global recursion_counter, inf_rec_var
-    print(dim("v2.69 stable")) # working on 3.0 push
+    print(dim("v2.77 stable")) # working on 3.0 push
     print(start_text)
     while True:
         try: 
@@ -450,6 +492,7 @@ inf_rec_var = False
 max_rec_lim = 100
 history = {}
 memory = []
+variables = {"pi": pi, "e": e}
 with open("MAIN/memory.txt","r") as file:
     memory = list(load(file))
 
@@ -467,4 +510,4 @@ if __name__ == "__main__":
 
 # [done] version 1.5: added error handling for invalid input, added error handling for division by zero, added error handling for non-integer input, added error handling for invalid operations, added error handling for missing operands, added error handling for extra operands, added error handling for empty input.
 # [done] version 2: added pemdas functionality, added exponents functionality, added and imporved history functionality, added history pause cmd, improve help text, added help cmd, added clear history cmd, added history evaluate cmd, added sequence shifting cmd, added quick shift cmd.
-# version 3: add variable functionality, add parentheses functionality, added memory functionality (memory saves to memory.txt), add function support, add a mode to show solution steps. 
+# version 3: added variable functionality, added parentheses functionality, added memory functionality (memory saves to memory.txt), add function support, added a mode to show solution steps. 
