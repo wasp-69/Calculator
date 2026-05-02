@@ -1,6 +1,6 @@
 from random import randint, choice
 from json import dump, load
-from math import pi, e
+from math import pi, e, sin, cos, tan, asin, acos, atan ,log, log10, fabs, floor, ceil, factorial
 
 def calculator(equation):
     global history_record, history, sequence, detail, variables
@@ -10,39 +10,63 @@ def calculator(equation):
         except AttributeError:
             parts = equation
         
+        if len(parts) > 1:
+            if parts[1] == "=":
+                vshvalue = parts[2:]
+                parts = ["/v","a",parts[0]]
+                for i in vshvalue:
+                    parts.append(i)
+            elif parts[1] == ":":
+                fshvalue =  parts[2:]
+                parts = ["/f","a",parts[0],]
+                for i in fshvalue:
+                    parts.append(i)
+        
+        try:
+
+            if parts[0].lower() == "/help":
+                return handle_help(parts)
+
+            elif parts[0].lower() in ["/example","/e"]:
+                return handle_example()
+            
+            elif parts[0].lower() in ["/history","/h"]:
+                return handle_history(parts)
+
+            elif parts[0].lower() in ["/sequence","/s"]:
+                return handle_sequence(parts)
+
+            elif parts[0].lower() in ["/memory","/m"]:
+                return handle_memory(parts, history)
+
+            elif parts[0].lower() in ["/detail","/d"]:
+                return handle_detail(parts)
+
+            elif parts[0].lower() in ["/variable","/v"]:
+                return handle_variable(parts)
+
+            elif parts[0].lower() in ["/function","/f"]:
+                return handle_function(parts,)
+            
+        except AttributeError:
+
+            pass
+
         if "(" in parts:
             return handle_parenthesis(parts)
         
-        if parts[0].lower() == "/help":
-            return handle_help(parts)
+        parts = evaluate_variable(parts)
+        if isinstance(parts, str):
+            return parts
 
-        elif parts[0].lower() in ["/example","/e"]:
-            return handle_example()
+        parts = evaluate_function(parts)
+        if isinstance(parts, str):
+            return parts
         
-        elif parts[0].lower() in ["/history","/h"]:
-            return handle_history(parts)
-
-        elif parts[0].lower() in ["/sequence","/s"]:
-            return handle_sequence(parts)
-
-        elif parts[0].lower() in ["/memory","/m"]:
-            return handle_memory(parts, history)
-
-        elif parts[0].lower() in ["/detail","/d"]:
-            return handle_detail(parts)
-
-        elif parts[0].lower() in ["/variable","/v"]:
-            return handle_variable(parts)
-
-        elif parts[0].lower() in ["/function","/f"]:
-            return handle_function(parts,)
-
+        if sequence == "LTR":
+            return evaluate_LTR(parts, equation)
         else:
-            parts = [str(variables[i]) if i in variables else i for i in parts]
-            if sequence == "LTR":
-                return evaluate_LTR(parts, equation)
-            else:
-                return evaluate_PEMDAS(parts, equation)
+            return evaluate_PEMDAS(parts, equation)
 
     except IndexError:
         return "Invalid equation format."
@@ -96,7 +120,7 @@ def evaluate_PEMDAS(parts, equation):
             try:
                 history[equation] = solution
             except TypeError:
-                history[" ".join(equation)] = solution
+                history[" ".join(map(str,equation))] = solution
         return f"Solution: {solution}"
     except IndexError:
         return "Invalid equation format."
@@ -146,16 +170,16 @@ def evaluate_LTR(parts, equation):
         return "Cannot divide by zero."
 
 def verify(parts):
-    if parts[0] in "+-*/^" or parts[-1] in "+-*/^":
+    if str(parts[0]) in "+-*/^" or str(parts[-1]) in "+-*/^":
         return False
     for i in range(len(parts)): 
         try:
-            float(parts[i])
+            float(str(parts[i]))
             if i % 2 != 0:
                 return False
-        except:
+        except ValueError:
             pass
-        if parts[i] in "+-*/^" and i % 2 == 0:
+        if str(parts[i]) in "+-*/^" and i % 2 == 0:
             return False
     return True
 
@@ -167,6 +191,7 @@ def handle_help(parts):
 ~/Memory      [4]
 ~/Detail      [5]
 ~/Variable    [6]
+~/Function    [7]
 Type help and then name of the command or its index to get more info.
     """
     help_history = f"""
@@ -178,7 +203,7 @@ Sub-Commands:
     """
     help_sequence = f"""
 /Sequence: Toggles between Pemdas evaluation and left-to-right evaluation sequences. {dim("/s")}
-Can also be followed by any equation to switch sequence, solve the equation and switch back. {dim("/s <eq>")}
+TIP: Can also be followed by any equation to switch sequence, solve the equation and switch back. {dim("/s <eq>")}
     """
     help_example = f"""
 /Example: Gives an example equation and solution with all operands except exponents. {dim("/e")}
@@ -191,33 +216,47 @@ Sub-Commands:
     /Memory Clear: Clears all equations from memory. {dim("/m c")}
     /Memory Solve: Starts solving all equations in memory in order. {dim("/m s")}
     /Memory Limit: Sets the Max Recursion Limit to specified value (default 100). {dim("/m l")}
+TIP: While using /Memory Add, you can provide a list and all the items will be added to memory separatley.
     """
     help_detail = f"""
 /Detail: Toggles showing steps when solving equations for added detail. {dim("/d")}
-Can also be followed by any equation to get a detailed solution on that equation only. {dim("/d <eq>")}
+TIP: Can also be followed by any equation to get a detailed solution on that equation only. {dim("/d <eq>")}
     """
     help_variable = f"""
-/Variable: Lists all variables stored with their values (pi and e are built-in). {dim("/v")}
+/Variable: Lists all variables stored with their values (pi, e, ans are built-in). {dim("/v")}
 Sub-Commands:
     /Variable Define <name> <value>: Define a new variable with name and value. {dim("/v d")}
     /Variable Forget <name>: Forget the definition of the given variable. {dim("/v f")}
     /Variable Wipe: Wipe all variable definitions. {dim("/v w")}
+TIP: Typing 'name = value' creates a new variable "name" with "value".
+"""
+    help_function = f"""
+/Function:  Lists all functions names and their definitions (program includes several built-in functions). {dim("/f")}
+Sub-Commands:
+    /Function <name>: Shows the definition and description of the given function. {dim("/f <name>")}
+    /Function Add <name> <definition>: Adds a new function with the given name and definition. {dim("/f a")}
+    /Function Description <name> <description>: Adds a description to the given function. {dim("/f d")}
+    /Function Remove <name>: Removes the given function. {dim("/f r")}
+    /Function Clear: Removes all user-defined functions. {dim("/f c")}
+TIP: Typing 'name : definition' creates a new function "name" with "definition".
 """
     
     if len(parts) == 1:
         return help_text
-    elif parts[1].lower() in ["/history","/h","history","h","1","[1]"]:
+    elif parts[1].lower().lstrip("~/") in ["history","h","1","[1]"]:
         return help_history
-    elif parts[1].lower() in ["/sequence","/s","sequence","s","2","[2]"]:
+    elif parts[1].lower().lstrip("~/") in ["sequence","s","2","[2]"]:
         return help_sequence
-    elif parts[1].lower() in ["/example","/e","example","e","3","[3]"]:
+    elif parts[1].lower().lstrip("~/") in ["example","e","3","[3]"]:
         return help_example
-    elif parts[1].lower() in ["/memory","/m","memory","m","4","[4]"]:
+    elif parts[1].lower().lstrip("~/") in ["memory","m","4","[4]"]:
         return help_memory
-    elif parts[1].lower() in ["/detail","/d","detail","d","5","[5]"]:
+    elif parts[1].lower().lstrip("~/") in ["detail","d","5","[5]"]:
         return help_detail
-    elif parts[1].lower() in ["/variable","/v","varibale","v","6","[6]"]:
+    elif parts[1].lower().lstrip("~/") in ["variable","v","6","[6]"]:
         return help_variable
+    elif parts[1].lower().lstrip("~/") in ["function","f","7","[7]"]:
+        return help_function
     else:
         return f"No help topic found for '{parts[1]}'."
 
@@ -282,9 +321,9 @@ def handle_sequence(parts):
 def handle_memory(parts, history):
     global memory, recursion_counter, inf_rec_var, max_rec_lim
     if len(parts) == 1:
-        with open("MAIN/memory.txt","w") as file:
+        with open("MAIN\\memory.txt","w") as file:
                 dump(memory, file)
-        print(dim("~ ~ ~ ~ ~\n"),"\n".join(memory),dim("\n~ ~ ~ ~ ~"))
+        print(dim("~ ~ ~ ~ ~\n"),"\n".join(memory).strip(),dim("\n~ ~ ~ ~ ~"))
         return f"Memory contains {len(memory)} entries currently."
 
     elif parts[1].lower() in ["add","a"]:
@@ -295,8 +334,15 @@ def handle_memory(parts, history):
                 return "No equation found to add to memory, provide one or have one in history."
         else:
             del parts[0:2]
-            memory.append(" ".join(list(map(str, parts))))
-        with open("MAIN/memory.txt","w") as file:
+            subject = " ".join(list(map(str, parts)))
+            if subject.startswith("[") and subject.endswith("]"):
+                subject = subject.removeprefix("[").removesuffix("]")
+                for i in subject.split(","):
+                    element = i.strip(" '\"")
+                    memory.append(element)
+            else:
+                memory.append(subject.strip())
+        with open("MAIN\\memory.txt","w") as file:
             dump(memory, file)
         return "Memory updated!"
 
@@ -305,20 +351,20 @@ def handle_memory(parts, history):
             return "Memory is empty."
         if len(parts) == 2:
             removed_item = memory.pop()
-            with open("MAIN/memory.txt","w") as file:
+            with open("MAIN\\memory.txt","w") as file:
                 dump(memory, file)
             return f"'{removed_item}' has been removed from memory."
         del parts[0:2]
         try:
             memory.remove(" ".join(parts))
-            with open("MAIN/memory.txt","w") as file:
+            with open("MAIN\\memory.txt","w") as file:
                 dump(memory, file)
             return f"'{" ".join(parts)}' has been removed from memory."
         except ValueError:
             return f"'{" ".join(parts)}' not found in memory."
         
     elif parts[1].lower() in ["clear","c"]:
-        with open("MAIN/memory.txt","w") as file:
+        with open("MAIN\\memory.txt","w") as file:
             memory.clear()
             dump(memory, file)
             return "Memory has been cleared."
@@ -383,7 +429,7 @@ def verify_parenthesis(parts):
 
 def handle_parenthesis(parts):
     global detail
-    parts = [str(variables[i]) if i in variables else i for i in parts]
+    parts = evaluate_variable(parts)
     if not verify_parenthesis(parts):
         return "Invalid parenthesis."
     while "(" in parts:
@@ -415,7 +461,7 @@ def handle_parenthesis(parts):
             pass
         between = slice(op_index+1,cl_index)
         if detail:
-            print(dim(f" = {" ".join(parts)}"))
+            print(dim(f" = {" ".join(map(str,parts))}"))
         temp_detail = detail
         if detail:
             detail = False
@@ -424,7 +470,7 @@ def handle_parenthesis(parts):
         parts = parts[:op_index] + calculator(parts[between]).removeprefix("Solution: ").split() + parts[cl_index+1:]
         detail = temp_detail
     if detail:
-        print(dim(f" = {" ".join(parts)}"))
+        print(dim(f" = {" ".join(map(str,parts))}"))
     return calculator(parts)
 
 def handle_variable(parts):
@@ -435,26 +481,119 @@ def handle_variable(parts):
             print(f"{name} = {value}")
         print(dim("▪ ▪ ▪ ▪ ▪"))
         return f"There are {len(variables)} defined variables."
-    elif parts[1].lower() in ["define","d"]:
+    elif parts[1].lower() in ["add","a"]:
         name, value = parts[2], calculator(parts[3:]).removeprefix("Solution: ")
-        if name.isdigit() or any(item in name for item in list("+-*/^()")):
+        if is_float(name) or any(item in name for item in list("+-*/^()")):
             return "Invalid variable name, must be a string without any operands or parenthesis."
         try:
             value = float(value)
         except ValueError:
-            return "Invalid variable value, only numeric values are valid."
+            return "Invalid variable value."
         variables[name] = value
         return f"New variable '{name}' with the value '{value}' defined."
-    elif parts[1].lower() in ["forget","f"]:
+    elif parts[1].lower() in ["remove","r"]:
         if variables.pop(parts[2], False):
             return f"Forgot the definition of '{parts[2]}'."
-        return f"No variable found with the name '{parts[2]}' to forget."
-    elif parts[1].lower() in ["wipe","w"]:
+        return f"No variable found with the name '{parts[2]}' to remove."
+    elif parts[1].lower() in ["clear","c"]:
         variables = {}
-        return "All variable definitions wiped."
+        return "All variable definitions cleared."
+    else:
+        return f"No action available for '{" ".join(parts)}'."
+
+def evaluate_variable(parts):
+    global detail
+    func_list = {**functions_builtin, **functions}
+    temp_parts = []
+    for index, i in enumerate(parts):
+        if str(parts[index-1]) not in "+-*/^([" and i in variables and index != 0:
+            if str(parts[index-1]) not in func_list:
+                temp_parts.append("*")
+        temp_parts.append(i)
+    if detail:
+        print(dim(f" = {" ".join(map(str,temp_parts))}"))
+    for index, i in enumerate(temp_parts):
+        if i in variables:
+            temp_parts[index] = variables[i]
+    return temp_parts
 
 def handle_function(parts):
-    ...
+    global functions_builtin, functions
+    func_list = {**functions_builtin, **functions}
+    if len(parts) == 1:
+        print(dim("◊ ◊ ◊ ◊ ◊"))
+        for name, definition in func_list.items():
+            print(f"{name} : {definition[0]}")
+        print(dim("◊ ◊ ◊ ◊ ◊"))
+        return f"There are {len(func_list)} defined functions."
+    elif parts[1] in func_list:
+        try:
+            return f"{func_list[parts[1]][0]} : {func_list[parts[1]][1]}"
+        except IndexError:
+            return f"No description for {func_list[parts[1]][0]}"
+    elif parts[1].lower() in ["add","a"]:
+        name, definition = parts[2], parts[3:]
+        if name.isdigit() or any(item in name for item in list("+-*/^()[]")):
+            return "Invalid function name, must be a string without any operands or brackets."
+        if name in functions_builtin:
+            return "Invalid function name, such function comes built in."
+        functions[name] = [" ".join(definition), "No description provided."]
+        return f"Function {name} successfully added."
+    elif parts[1].lower() in ["description","d"]:
+        if parts[2] in functions:
+            functions[parts[2]].append(" ".join(parts[3:]))
+            return f"Description for {parts[2]} added."
+        return f"Function {parts[2]} doesnt exist."
+    elif parts[1].lower() in ["remove","r"]:
+        if parts[2] in functions:
+            functions.pop(parts[2])
+            return f"Function {parts[2]} removed."
+        return f"Function {parts[2]} doesnt exist."
+    elif parts[1].lower() in ["clear","c"]:
+        functions.clear()
+        return "All functions removed."
+
+def evaluate_function(parts):
+    global functions, functions_builtin, detail
+    func_list = {**functions_builtin, **functions}
+    evaluated_parts = []
+    for index, i in enumerate(parts):
+        if str(parts[index-1]) not in "+-*/^([" and i in func_list and index != 0:
+            evaluated_parts.append("*")
+        evaluated_parts.append(i)
+    if detail:
+        print(dim(f" = {" ".join(map(str,parts))}"))
+    parts = evaluated_parts.copy()
+    evaluated_parts = []
+    for index, i in enumerate(reversed(parts)):
+        if i in func_list:
+            continue
+        try:
+            if list(reversed(parts))[index+1] in functions_builtin:
+                evaluated_parts.append(globals()[list(reversed(parts))[index+1]](float(i)))
+            elif list(reversed(parts))[index+1] in functions:
+                temp_detail = detail
+                if detail:
+                    detail = False
+                sol = calculator(functions[list(reversed(parts))[index+1]][0].replace("x",str(i)))
+                detail = temp_detail
+                if sol.startswith("Solution: "):
+                    sol = sol.removeprefix("Solution: ")
+                else:
+                    return sol
+                evaluated_parts.append(sol)
+            else:
+                evaluated_parts.append(i)
+        except TypeError:
+            try:
+                evaluated_parts.append(globals()[list(reversed(parts))[index+1]](int(i)))
+            except ValueError:
+                return f"Invalid argument for function."
+        except ValueError:
+            return f"Invalid argument for function."
+        except IndexError:
+            evaluated_parts.append(i)
+    return list(reversed(evaluated_parts))     
 
 def is_float(test):
     try:
@@ -462,13 +601,13 @@ def is_float(test):
         return True
     except (ValueError, TypeError):
         return False
-
+    
 def dim(string):
     return "\033[2m"+str(string)+"\033[0m"
 
 def main():
-    global recursion_counter, inf_rec_var
-    print(dim("v2.77 stable")) # working on 3.0 push
+    global recursion_counter, inf_rec_var, variables
+    print(dim("v3.0"))
     print(start_text)
     while True:
         try: 
@@ -476,7 +615,10 @@ def main():
                 print("Infinite Recursion Terminated.")
                 inf_rec_var = False
             recursion_counter = 0
-            print(calculator(input("\rEquation: ")))
+            output = calculator(input("\rEquation: "))
+            if output.startswith("Solution: "):
+                variables["ans"] = output.removeprefix("Solution: ")
+            print(output)
         except KeyboardInterrupt:
             try:
                 print(calculator(input(dim("[Ctrl+C again to confirm exit]")+"\nEquation: ")))
@@ -491,13 +633,32 @@ detail = False
 inf_rec_var = False
 max_rec_lim = 100
 history = {}
-memory = []
-variables = {"pi": pi, "e": e}
-with open("MAIN/memory.txt","r") as file:
+memory = [] 
+variables = {"pi": pi, "e": e, "ans": 0}
+functions_builtin = {
+    "sin": [sin, "sine function, usage: sin ( angle in radians )"],
+    "cos": [cos, "cosine function, usage: cos ( angle in radians )"],
+    "tan": [tan, "tangent function, usage: tan ( angle in radians )"],
+    "asin": [asin, "arcsine function, usage: asin ( value )"],
+    "acos": [acos, "arccosine function, usage: acos ( value )"],
+    "atan": [atan, "arctangent function, usage: atan ( value )"],
+    "log": [log, "natural logarithm function, usage: log ( value )"],
+    "log10": [log10, "base-10 logarithm function, usage: log10 ( value )"],
+    "fabs": [fabs, "absolute value function, usage: fabs ( value )"],
+    "floor": [floor, "floor function, usage: floor ( value )"],
+    "ceil": [ceil, "ceiling function, usage: ceil ( value )"],
+    "factorial": [factorial, "factorial function, usage: factorial ( value )"]
+}
+functions = {}
+with open("MAIN\\memory.txt","r") as file:
     memory = list(load(file))
 
-start_text = """\n-Type in equations in the form <operand><space><operation><space><operand> and so on.
--Parenthesis must have a space on both sides of it (implicit multiplication is supported).
+start_text = """\n-Type in equations in the form <operand><space><operation><space><operand> and so on (e.g. '2 * 3 + 4').
+-Parenthesis must have a space on both sides of it (e.g. '2 * ( 3 + 4 )').
+-Variables and functions mustnt share the same name and are case-sensitive.
+-Functions have 'x' as the independent variable or its argument (e.g. 'f: x^2 + 3x + 2').
+-To use functions, type in the name followed by its argument with or without parenthesis (e.g. 'sin 1' or 'sin(1)').
+-Implicit multiplication is supported (e.g. 'pi ( 3 e + 4 )' or '2 sin ( 1 )').
 -Current operands include: + - * / ^.
 -Keyboard interrupt (twice) to exit.
 -Type /help (recommended for first use).\n"""
@@ -510,4 +671,4 @@ if __name__ == "__main__":
 
 # [done] version 1.5: added error handling for invalid input, added error handling for division by zero, added error handling for non-integer input, added error handling for invalid operations, added error handling for missing operands, added error handling for extra operands, added error handling for empty input.
 # [done] version 2: added pemdas functionality, added exponents functionality, added and imporved history functionality, added history pause cmd, improve help text, added help cmd, added clear history cmd, added history evaluate cmd, added sequence shifting cmd, added quick shift cmd.
-# version 3: added variable functionality, added parentheses functionality, added memory functionality (memory saves to memory.txt), add function support, added a mode to show solution steps. 
+# [done] version 3: added variable functionality, added parentheses functionality, added memory functionality (memory saves to MAIN\\memory.txt), added function support, added a mode to show solution steps, added memory packages with [].
