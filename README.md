@@ -18,7 +18,7 @@ Includes both Pemdas and Letori evaluation sequences (which can be toggled at wi
 Features a toggle to enable show-steps solving.
 Features custom and built-in Variables and Functions.
 Includes Implicit Multiplication wherever necessary.
-Packages: Packages are a set of definitions (variable or functions) which can all be installed quickly using- /m a [-your-package-]
+Packages: Packages are a set of definitions (variable or functions) which can all be installed quickly using- '/m a [-your-package-]' (to load the definitions) followed by '/m s' (to initiate the definitions).
 
 Variable Packages:
     Astrophysics = ["M_sun = 1.989e30", "R_sun = 6.957e8", "M_earth = 5.972e24", "R_earth = 6.371e6", "M_moon = 7.347e22", "R_moon = 1.737e6", "H0 = 70.0", "pc = 3.086e16", "ly = 9.461e15", "AU = 1.496e11"]
